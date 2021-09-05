@@ -3,9 +3,11 @@
 #include <cstdlib>
 #include <errno.h>
 #include <cstring>
-
+#include <algorithm>
 using namespace std;
 
+int sum = 0; //	The number of the members
+const int N = 1e2 + 10;
 struct member_List
 {
 	char id[10];
@@ -15,6 +17,7 @@ struct member_List
 	struct member_List *next_address_point;
 };
 typedef struct member_List* Mem_List_Ptr;
+struct member_List array_sort[N];
 
 //检查文件是否打开成功
 void open_File_Check(FILE *fp);
@@ -22,9 +25,23 @@ void open_File_Check(FILE *fp);
 void file_Load_Admin();
 //加载教练的名单
 void file_Load_Jiaolian();
+//whether a is front of b
+bool cmp_Positive_Order_Id(struct member_List &a, struct member_List &b)
+{
+	if(strcmp(a.id, b.id) <= 0)
+		return true;
+	return false;
+}
+bool cmp_Positive_Order_Name(struct member_List &a, struct member_List &b)
+{
+	if(strcmp(a.name, b.name) <= 0)
+		return true;
+	return false;
+}
 //加载学员的名单 
 Mem_List_Ptr file_Load_Member(Mem_List_Ptr member_head_list);
-
+//write updated information of member to member.txt
+void Data_Write(Mem_List_Ptr member_head_list);
 //插入新学员
 Mem_List_Ptr insert_Member_List(const Mem_List_Ptr incept_from_txt_pointer, Mem_List_Ptr member_head_list);
 //删除新学员
@@ -35,6 +52,10 @@ void find_Member_List(const char aim_string[], const Mem_List_Ptr member_head_li
 void alter_Member_List(const char aim_string[], const Mem_List_Ptr member_head_list);
 //创建学员名单
 Mem_List_Ptr create_Member_List(const Mem_List_Ptr incept_from_txt_pointer, Mem_List_Ptr member_head_list);
+//use quick sort for array
+void sort_Member_List(const Mem_List_Ptr member_head_list);
+//print sorted array
+void print_Array_Sort(const struct member_List array[]);
 void open_File_Check(FILE *fp)
 {
 	if(fp == NULL)
@@ -56,16 +77,30 @@ Mem_List_Ptr file_Load_Member(Mem_List_Ptr member_head_list)
 	struct member_List incept_from_txt;
 	while((return_fscanf =  fscanf(fp, "%s	%s	%d	%d	%d	%d", incept_from_txt.id, incept_from_txt.name, &incept_from_txt.score[1], &incept_from_txt.score[2], &incept_from_txt.score[3], &incept_from_txt.score[4])) != EOF)
 	{
-		//printf("return_fscanf  = %d,===%s==\n", return_fscanf, incept_from_txt.name);
 		member_head_list = create_Member_List(&incept_from_txt, member_head_list);
-		//if(member_head_list == NULL)
-		//	printf("why ???\n");
-		//printf("%d	11%s11	%d 	%d	%d	%d\n", incept_from_txt.id, incept_from_txt.name, incept_from_txt.score[1], incept_from_txt.score[2], incept_from_txt.score[3], incept_from_txt.score[4]);
 	}
 	fclose(fp);
 	return member_head_list;
 }
 
+void Data_Write(Mem_List_Ptr member_head_list)
+{
+	int return_fscanf;
+	FILE *fp = NULL;
+	fp = fopen("/root/20210830/Txt_Doc/member.txt", "r");
+	open_File_Check(fp);
+	
+	Mem_List_Ptr index = NULL;
+	while(index)
+	{
+		fprintf(fp, );
+
+
+		index = index->next_address_point;
+	}
+	
+	fclose(fp);
+}
 
 /**
  * 修改学员信息
@@ -100,7 +135,10 @@ void alter_Member_List(const char aim_string[], const Mem_List_Ptr member_head_l
 		index = index->next_address_point;	
 	}
 }
-
+/*
+ * find the member who you want
+ * you can find him use his name or id
+ */
 void find_Member_List(const char aim_string[], const Mem_List_Ptr member_head_list)
 {
 	Mem_List_Ptr index = NULL;
@@ -128,7 +166,7 @@ Mem_List_Ptr remove_Member_List(const char aim_string[], Mem_List_Ptr member_hea
 	Mem_List_Ptr index_front = member_head_list, index = member_head_list, index_behind = member_head_list->next_address_point;
  	
 	int cnt = 1;
-	printf("111111----\n");
+	printf("remove----\n");
 	//该字符串为姓名或编号	
 	while(index != NULL)
 	{
@@ -185,9 +223,87 @@ void print_Member_List(const Mem_List_Ptr member_head_list)
 			printf("	NOT PASS\n");
 		index = index->next_address_point;	
 	}
-	//printf("print!!!");
 }
 
+#if 1
+//printed sorted array use name or id of student
+void print_Array_Sort(const struct member_List array[])
+{
+	int incept_from_input;
+	printf("\n1 2 Positive or Reverse !\n");
+	scanf("%d", &incept_from_input);
+	if(incept_from_input == 1)
+	{
+		for(int i = 1; i <= sum; ++i)
+		{
+			printf("%s	%s	%d 	%d	%d	%d", array[i].id,  array[i].name, array[i].score[1], array[i].score[2], array[i].score[3], array[i].score[4]);
+			if(array[i].pass_or_not)
+				printf("	PASS!\n");
+			else
+				printf("	NOT PASS\n");
+
+		}
+	}
+	else if(incept_from_input == 2)
+	{
+		for(int i = sum; i >= 1; --i)
+		{
+			printf("%s	%s	%d 	%d	%d	%d", array[i].id,  array[i].name, array[i].score[1], array[i].score[2], array[i].score[3], array[i].score[4]);
+			if(array[i].pass_or_not)
+				printf("	PASS!\n");
+			else
+				printf("	NOT PASS\n");
+
+		}
+	}
+}
+#endif
+
+void sort_Member_List(const Mem_List_Ptr member_head_list)
+{	
+	Mem_List_Ptr index = NULL;
+	index = member_head_list;
+	//printf("print===");
+	sum = 0;
+	for(int i = 1; index; ++i)
+	{
+		strcpy(array_sort[i].id, index->id);	
+		strcpy(array_sort[i].name, index->name);
+		for(int j = 1; j <= 4; ++j)
+		{
+			array_sort[i].score[j] = index->score[j];
+		}
+		array_sort[i].pass_or_not = index->pass_or_not;
+		++sum;
+/*	
+	struct member_List
+{
+	char id[10];
+	char name[10];
+	int score[5];
+	bool pass_or_not;
+	struct member_List *next_address_point;
+};
+*/
+	//	printf("%s	%s	%d 	%d	%d	%d", index->id, index->name, index->score[1], index->score[2], index->score[3], index->score[4]);
+	//	if(index->pass_or_not)
+	//		printf("	PASS!\n");
+	//	else
+	//		printf("	NOT PASS\n");
+		index = index->next_address_point;	
+	}
+	int incept_from_input;
+	printf("\n	1 2	name or id\n");
+	scanf("%d", &incept_from_input);
+	
+	if(incept_from_input == 1)
+		sort(array_sort+1, array_sort+sum+1, cmp_Positive_Order_Name);	
+	else if(incept_from_input == 2)
+		sort(array_sort+1, array_sort+sum+1, cmp_Positive_Order_Id);
+	else
+		printf("\nerror, do not have this opion!\n");
+	print_Array_Sort(array_sort);
+}
 /*
  * 采用头插入法插入新的节点
  */
@@ -278,10 +394,17 @@ int main()
 //void alter_Member_List(const char aim_string[], const Mem_List_Ptr member_head_list);
 	
 	printf("\n\n");
-	
+
 	alter_Member_List("pc", member_head_list);
 	print_Member_List(member_head_list);
 	
+	printf("\n");
+	//void sort_Member_List(const Mem_List_Ptr member_head_list)
+	while(1)
+	{
+		sort_Member_List(member_head_list);
+		printf("\n");
+	}
 	destroy_Member_List(member_head_list);
 	exit(0);
 }
