@@ -1,0 +1,4 @@
+12	liyang	94	91	92	97	PASS!
+4	tangshuang	96	94	92	94	PASS!
+1	zhaolong	91	92	94	97	PASS!
+8	lipeng	94	92	93	99	PASS!
