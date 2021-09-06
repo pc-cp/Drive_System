@@ -75,7 +75,9 @@ void destroy_Coach_List(Coa_List_Ptr coach_head_list);
 //whether a is front of b 
 bool cmp_Positive_Order_Id(struct member_List &a, struct member_List &b)
 {
-	if(strcmp(a.id, b.id) <= 0)
+	if(strlen(a.id) != strlen(b.id))
+		return strlen(a.id) < strlen(b.id);
+	else if(strcmp(a.id, b.id) <= 0)
 		return true;
 	return false;
 }
@@ -286,7 +288,7 @@ Mem_List_Ptr remove_Member_List(const char aim_string[], Mem_List_Ptr member_hea
 			//index_front 始终在指向index的前面一个节点，index_behind始终指向index的后面一个节点
 			//除非一开始状态是front和index一样，指向最后一个节点时候，behind和index一样
 			index = index_behind;
-			if(index->next_address_point != NULL)
+			if(index != NULL)
 				index_behind = index->next_address_point;
 			if(index_front->next_address_point != index)
 				{
