@@ -4,14 +4,18 @@
 #include <errno.h>
 #include <cstring>
 #include <algorithm>
+#include <unistd.h>
+#include "color.h"
 using namespace std;
 
-int sum = 0; //	The number of the members
+int sort_array_length = 0; //	The number of the members
+int sum_member = 0;
+int pass_number[5]; //pass_number[i] represent total passing subject i number;
 const int N = 1e2 + 10;
 struct member_List
 {
-	char id[10];
-	char name[10];
+	char id[20];
+	char name[20];
 	int score[5];
 	bool pass_or_not;
 	struct member_List *next_address_point;
@@ -21,14 +25,14 @@ struct member_List array_sort[N];
 
 struct admin_List
 {
-	char name[10];
+	char name[20];
 	struct admin_List *next_address_point;
 };
 typedef struct admin_List* Adm_List_Ptr;
 
 struct coach_List
 {
-	char name[10];
+	char name[20];
 	struct coach_List *next_address_point;
 };
 typedef struct coach_List* Coa_List_Ptr;
@@ -60,10 +64,10 @@ void alter_Member_List(const char aim_string[], const Mem_List_Ptr member_head_l
 //use quick sort for array
 void sort_Member_List(const Mem_List_Ptr member_head_list);
 //print sorted array
-void print_Array_Sort(const struct member_List array[]);
+void print_Array_Sort(const struct member_List array[], int flag);
 
 //user login
-int User_Login(const Mem_List_Ptr member_head_list, const Adm_List_Ptr admin_head_list, const Coa_List_Ptr coach_head_list);
+int User_Login(char name[], const Mem_List_Ptr member_head_list, const Adm_List_Ptr admin_head_list, const Coa_List_Ptr coach_head_list);
 //write updated information of member to member.txt
 void data_Write(Mem_List_Ptr member_head_list);
 
@@ -71,7 +75,24 @@ void data_Write(Mem_List_Ptr member_head_list);
 void destroy_member_List(Mem_List_Ptr member_head_list);
 void destroy_Admin_List(Adm_List_Ptr admin_head_list);
 void destroy_Coach_List(Coa_List_Ptr coach_head_list);
-
+void progress_Bar_Print();
+//打印彩色进度条 
+void progress_Bar_Print()
+{
+   char buf[102] = "#";
+   char sym[] = "/|-\\";
+   for(int i = 1;i <= 100;i++)
+   {
+      buf[i] = '#';
+      //设置进度条为蓝色，百分比进度为绿色，\r为不换行，光标移动到行首输出
+      printf("\033[34m[%-100s]\033[32m[%d%]\033[0m[%c]\r",buf,i,sym[i%4]);
+      //因为没有遇到\n因此需要刷新缓冲区立刻输出printf的内容，，否则会先执行usleep
+      fflush(stdout);
+      //Linux下usleep是按照毫秒计算的
+      usleep(10000);
+   }
+   printf("\n");
+}
 //whether a is front of b 
 bool cmp_Positive_Order_Id(struct member_List &a, struct member_List &b)
 {
@@ -110,8 +131,8 @@ Adm_List_Ptr file_Load_Admin(Adm_List_Ptr admin_head_list)
 	
 	while((return_fscanf =  fscanf(fp, "%s", incept_from_txt.name) != EOF))
 	{
-		printf("return_fscanf_= %d\n", return_fscanf);
-		printf("%s\n", incept_from_txt.name);
+	//	printf("return_fscanf_= %d\n", return_fscanf);
+	//	printf("%s\n", incept_from_txt.name);
 		admin_head_list = create_Admin_List(&incept_from_txt, admin_head_list);
 	}
 	fclose(fp);
@@ -146,8 +167,8 @@ Coa_List_Ptr file_Load_Coach(Coa_List_Ptr coach_head_list)
 	
 	while((return_fscanf =  fscanf(fp, "%s", incept_from_txt.name) != EOF))
 	{
-		printf("return_fscanf_= %d\n", return_fscanf);
-		printf("%s\n", incept_from_txt.name);
+	//	printf("return_fscanf_= %d\n", return_fscanf);
+	//	printf("%s\n", incept_from_txt.name);
 		coach_head_list = create_Coach_List(&incept_from_txt, coach_head_list);
 	}
 	fclose(fp);
@@ -181,12 +202,11 @@ Mem_List_Ptr file_Load_Member(Mem_List_Ptr member_head_list)
 	fp = fopen("/root/20210830/Txt_Doc/member.txt", "r");
 	open_File_Check(fp);
 	struct member_List incept_from_txt;
-	char pass_or_not_string[10];
-	
+	char pass_or_not_string[20];
 	while((return_fscanf =  fscanf(fp, "%s	%s	%d	%d	%d	%d	%s", incept_from_txt.id, incept_from_txt.name, &incept_from_txt.score[1], &incept_from_txt.score[2], &incept_from_txt.score[3], &incept_from_txt.score[4], pass_or_not_string)) != EOF)
 	{
-		printf("return_fscanf_= %d\n", return_fscanf);
-		printf("%s	%s	4 = %d	%s\n", incept_from_txt.id, incept_from_txt.name, incept_from_txt.score[4], pass_or_not_string);
+	//	printf("return_fscanf_= %d\n", return_fscanf);
+	//	printf("%s	%s	4 = %d	%s\n", incept_from_txt.id, incept_from_txt.name, incept_from_txt.score[4], pass_or_not_string);
 		member_head_list = create_Member_List(&incept_from_txt, member_head_list);
 	}
 	fclose(fp);
@@ -209,7 +229,7 @@ Mem_List_Ptr create_Member_List(const Mem_List_Ptr incept_from_txt_pointer, Mem_
 	index->pass_or_not = true;
 	for(int i = 1; i <= 4; ++i)
 	{
-		index->pass_or_not = incept_from_txt_pointer->score[i] >= 90;
+		index->pass_or_not = index->pass_or_not && (incept_from_txt_pointer->score[i] >= 90);
 		index->score[i] = incept_from_txt_pointer->score[i];
 	}
 	
@@ -261,41 +281,43 @@ Mem_List_Ptr remove_Member_List(const char aim_string[], Mem_List_Ptr member_hea
 	//printf("remove----\n", );
 	//该字符串为姓名或编号	
 	while(index != NULL)
+	{
+		//printf("cnt = %d\n", cnt++);
+		//if(cnt >= 20)
+			//break;
+		if((strcmp(index->name, aim_string) == 0) || (strcmp(index->id, aim_string) == 0))
 		{
-			//printf("cnt = %d\n", cnt++);
-			//if(cnt >= 10)
-				//break;
-			if((strcmp(index->name, aim_string) == 0) || (strcmp(index->id, aim_string) == 0))
-				{
-					if(index_front == index)  //头部就是要删除的节点
-					{
-						index_front = index_behind; //直接删除第一个节点
-						member_head_list = index_front;
-						break;
-					}
-					else if(index == index_behind) //尾部才是要删除的节点
-					{
-						index_front->next_address_point = NULL; //直接删除最后一个节点
-						break;
-					}
-					else	//中间某个节点是要删除的节点 
-					{
-						index_front->next_address_point = index_behind; //直接删除中间节点
-						break;	
-						
-					}
-				}
-			//index_front 始终在指向index的前面一个节点，index_behind始终指向index的后面一个节点
-			//除非一开始状态是front和index一样，指向最后一个节点时候，behind和index一样
-			index = index_behind;
-			if(index != NULL)
-				index_behind = index->next_address_point;
-			if(index_front->next_address_point != index)
-				{
-					index_front = index_front->next_address_point;
-				}	
-			
+			if(index_front == index)  //头部就是要删除的节点
+			{
+				index_front = index_behind; //直接删除第一个节点
+				member_head_list = index_front;
+				break;
+			}
+			else if(index->next_address_point == NULL) //尾部才是要删除的节点
+			{
+				index_front->next_address_point = NULL; //直接删除最后一个节点
+				break;
+			}
+			else	//中间某个节点是要删除的节点 
+			{
+				index_front->next_address_point = index_behind; //直接删除中间节点
+				break;	
+				
+			}
 		}
+		//index_front 始终在指向index的前面一个节点，index_behind始终指向index的后面一个节点
+		//除非一开始状态是front和index一样，指向最后一个节点时候，behind和index一样
+		index = index_behind;
+		if(index != NULL)
+		{
+			index_behind = index->next_address_point;
+		}
+		if(index_front->next_address_point != index)
+		{
+			index_front = index_front->next_address_point;
+		}	
+		
+	}
 	//释放已经删除节点的内存
 	free(index);
 	return member_head_list;
@@ -310,19 +332,19 @@ void find_Member_List(const char aim_string[], const Mem_List_Ptr member_head_li
 	Mem_List_Ptr index = NULL;
 	index = member_head_list;
 	while(index)
-		{
-			if((strcmp(index->id, aim_string) == 0) || (strcmp(index->name, aim_string) == 0))
-				{
-					printf("%s	%s	%d 	%d	%d	%d", index->id, index->name, index->score[1], index->score[2], index->score[3], index->score[4]);
-					if(index->pass_or_not)
-						printf("	PASS!\n");
-					else
-						printf("	NOT_PASS\n");
-					
-					break;
-				}
-			index = index->next_address_point;	
-		}
+	{
+		if((strcmp(index->id, aim_string) == 0) || (strcmp(index->name, aim_string) == 0))
+			{
+				printf("%s	%s	%d 	%d	%d	%d", index->id, index->name, index->score[1], index->score[2], index->score[3], index->score[4]);
+				if(index->pass_or_not)
+					printf("	PASS!\n");
+				else
+					printf("	NOT_PASS\n");
+				
+				break;
+			}
+		index = index->next_address_point;	
+	}
 }
 
 /**
@@ -363,13 +385,27 @@ void alter_Member_List(const char aim_string[], const Mem_List_Ptr member_head_l
 //print the member'list
 void print_Member_List(const Mem_List_Ptr member_head_list)
 {
+	//初始化
+	for(int i = 0; i <= 4; ++i)
+		pass_number[i] = 0;
+	
 	Mem_List_Ptr index = NULL;
 	index = member_head_list;
+	sum_member = 0; // 初始化
 	while(index)
 	{
-		printf("%s	%s	%d 	%d	%d	%d", index->id, index->name, index->score[1], index->score[2], index->score[3], index->score[4]);
+		sum_member++;
+		printf("%-3s	%-10s	%d 	%d	%d	%d", index->id, index->name, index->score[1], index->score[2], index->score[3], index->score[4]);
+		for(int i  = 1; i <= 4; ++i)
+		{
+			if(index->score[i] >= 90)
+				pass_number[i]++;
+		}
 		if(index->pass_or_not)
+		{
+			pass_number[0]++;  //如果该学员通过则pass_number[0] + 1	
 			printf("	PASS!\n");
+		}
 		else
 			printf("	NOT_PASS\n");
 		index = index->next_address_point;	
@@ -378,32 +414,64 @@ void print_Member_List(const Mem_List_Ptr member_head_list)
 
 #if 1
 //printed sorted array use name or id of student
-void print_Array_Sort(const struct member_List array[])
+void print_Array_Sort(const struct member_List array[], int flag)
 {
 	int incept_from_input;
-	printf("\n[1]Positive 	[2]Reverse !\n");
+	printf("\n[1]正序 	[2]逆序 !\n");
 	scanf("%d", &incept_from_input);
 	if(incept_from_input == 1)
 	{
-		for(int i = 1; i <= sum; ++i)
+		if(flag == 1)
 		{
-			printf("%s	%s	%d 	%d	%d	%d", array[i].id,  array[i].name, array[i].score[1], array[i].score[2], array[i].score[3], array[i].score[4]);
-			if(array[i].pass_or_not)
-				printf("	PASS!\n");
-			else
-				printf("	NOT_PASS\n");
+			for(int i = 1; i <= sort_array_length; ++i)
+			{
+				printf(YELLOW "%-3s" NONE "	%-10s	%d 	%d	%d	%d", array[i].id,  array[i].name, array[i].score[1], array[i].score[2], array[i].score[3], array[i].score[4]);
+				if(array[i].pass_or_not)
+					printf("	PASS!\n");
+				else
+					printf("	NOT_PASS\n");
+			}
+
+		}
+		else
+		{
+			for(int i = 1; i <= sort_array_length; ++i)
+			{
+				printf("%-3s	" YELLOW "%-10s" NONE "	%d 	%d	%d	%d", array[i].id,  array[i].name, array[i].score[1], array[i].score[2], array[i].score[3], array[i].score[4]);
+				if(array[i].pass_or_not)
+					printf("	PASS!\n");
+				else
+					printf("	NOT_PASS\n");
+			}
+
 
 		}
 	}
 	else if(incept_from_input == 2)
 	{
-		for(int i = sum; i >= 1; --i)
+		if(flag == 1)
 		{
-			printf("%s	%s	%d 	%d	%d	%d", array[i].id,  array[i].name, array[i].score[1], array[i].score[2], array[i].score[3], array[i].score[4]);
-			if(array[i].pass_or_not)
-				printf("	PASS!\n");
-			else
-				printf("	NOT_PASS\n");
+			for(int i = sort_array_length; i >= 1; --i)
+			{
+				printf(YELLOW "%-3s" NONE "	%-10s	%d 	%d	%d	%d", array[i].id,  array[i].name, array[i].score[1], array[i].score[2], array[i].score[3], array[i].score[4]);
+				if(array[i].pass_or_not)
+					printf("	PASS!\n");
+				else
+					printf("	NOT_PASS\n");
+			}
+
+		}
+		else
+		{
+			for(int i = sort_array_length; i >= 1; --i)
+			{
+				printf("%-3s	" YELLOW "%-10s" NONE "	%d 	%d	%d	%d", array[i].id,  array[i].name, array[i].score[1], array[i].score[2], array[i].score[3], array[i].score[4]);
+				if(array[i].pass_or_not)
+					printf("	PASS!\n");
+				else
+					printf("	NOT_PASS\n");
+			}
+
 
 		}
 	}
@@ -415,7 +483,7 @@ void sort_Member_List(const Mem_List_Ptr member_head_list)
 	Mem_List_Ptr index = NULL;
 	index = member_head_list;
 	
-	sum = 0;
+	sort_array_length = 0;
 	for(int i = 1; index; ++i)
 	{
 		strcpy(array_sort[i].id, index->id);	
@@ -425,21 +493,21 @@ void sort_Member_List(const Mem_List_Ptr member_head_list)
 			array_sort[i].score[j] = index->score[j];
 		}
 		array_sort[i].pass_or_not = index->pass_or_not;
-		++sum;
+		++sort_array_length;
 
 		index = index->next_address_point;	
 	}
 	int incept_from_input;
-	printf("\n [1] name 		[2] id\n");
+	printf("\n [1] 编号 		[2] 姓名\n");
 	scanf("%d", &incept_from_input);
 	
 	if(incept_from_input == 1)
-		sort(array_sort+1, array_sort+sum+1, cmp_Positive_Order_Name);	
+		sort(array_sort+1, array_sort+sort_array_length+1, cmp_Positive_Order_Id);	
 	else if(incept_from_input == 2)
-		sort(array_sort+1, array_sort+sum+1, cmp_Positive_Order_Id);
+		sort(array_sort+1, array_sort+sort_array_length+1, cmp_Positive_Order_Name);
 	else
 		printf("\nerror, do not have this option!\n");
-	print_Array_Sort(array_sort);
+	print_Array_Sort(array_sort, incept_from_input);
 }
 void destroy_Member_List(Mem_List_Ptr member_head_list)
 {
@@ -459,11 +527,11 @@ void destroy_Admin_List(Adm_List_Ptr admin_head_list)
 	Adm_List_Ptr index = NULL;
 	index = admin_head_list;
 	while(admin_head_list)
-		{
-			index = admin_head_list;
-			admin_head_list = admin_head_list->next_address_point;
-			free(index);
-		}
+	{
+		index = admin_head_list;
+		admin_head_list = admin_head_list->next_address_point;
+		free(index);
+	}
 }
 void destroy_Coach_List(Coa_List_Ptr coach_head_list)
 {
@@ -471,11 +539,11 @@ void destroy_Coach_List(Coa_List_Ptr coach_head_list)
 	Coa_List_Ptr index = NULL;
 	index = coach_head_list;
 	while(coach_head_list)
-		{
-			index = coach_head_list;
-			coach_head_list = coach_head_list->next_address_point;
-			free(index);
-		}
+	{
+		index = coach_head_list;
+		coach_head_list = coach_head_list->next_address_point;
+		free(index);
+	}
 }
 
 int find_User_Member(const char aim_string[], const Mem_List_Ptr member_head_list)
@@ -484,7 +552,7 @@ int find_User_Member(const char aim_string[], const Mem_List_Ptr member_head_lis
 	index = member_head_list;
 	while(index)
 	{
-		printf("find_user");
+		//printf("find_user");
 		if(strcmp(index->name, aim_string) == 0)
 		{
 			return 1; //represent member	
@@ -527,33 +595,32 @@ int find_User_Admin(const char aim_string[], const Adm_List_Ptr admin_head_list)
 	return -1;
 }
 
-int User_Login(const Mem_List_Ptr member_head_list, const Adm_List_Ptr admin_head_list, const Coa_List_Ptr coach_head_list)
+int User_Login(char name[], const Mem_List_Ptr member_head_list, const Adm_List_Ptr admin_head_list, const Coa_List_Ptr coach_head_list)
 {
 	int flag = 0;
-	char name[10];
-	printf("\n--------------登陆窗口用户名:------------\n");
-	scanf("%s", name);
 	
 	flag = find_User_Member(name, member_head_list);
-
-	printf("\nreturn flag !\n");
 	if(flag == 1)
 	{
-		printf("Welcome %s student!\n", name);
+		
+		progress_Bar_Print();
+		printf("Welcome %s " L_RED "Student!\n" NONE, name);
 		return flag;
 	}
 	
 	flag = find_User_Coach(name, coach_head_list);
 	if(flag == 2)
 	{
-		printf("Welcome %s coach!\n", name);
+		progress_Bar_Print();
+		printf("Welcome %s " L_RED "Coach!\n" NONE, name);
 		return flag;
 	}
 	
 	flag = find_User_Admin(name, admin_head_list);
 	if(flag == 3)
-	{
-		printf("Welcome %s admin!\n", name);
+	{	
+		progress_Bar_Print();
+		printf("Welcome %s " L_RED "Admin!\n" NONE, name);
 		return flag;
 	}
 
@@ -581,7 +648,7 @@ int main()
 	Adm_List_Ptr admin_head_list  = NULL;
 	Coa_List_Ptr coach_head_list  = NULL;
 	int option = 8;
-	char aim_string[10];
+	char aim_string[20], name[20];
 	int flag;
 	while(1)
 	{
@@ -595,62 +662,76 @@ int main()
 			admin_head_list  = file_Load_Admin(admin_head_list);
 			coach_head_list  = file_Load_Coach(coach_head_list);
 			//user Login
-			flag = User_Login(member_head_list, admin_head_list, coach_head_list);
+			//	1. 学员
+			//	2. coach
+			//	3、admin
+			memset(name, '\0', 20*sizeof(char));
+			printf("\n--------------登陆窗口用户名:------------\n");
+			scanf("%s", name);
+			flag = User_Login(name, member_head_list, admin_head_list, coach_head_list);
 			if(flag < 0)
 			{
-				printf("无此人记录!\n");
-				exit(1);
+				printf("\n无此人记录!\n");
+				break;
 			}
 		}
-		printf("--\n--\n");
-		printf("1	查找功能\n");
-		printf("2	修改功能\n");
-		printf("3	插入功能\n");
-		printf("4	删除功能\n");
-		printf("5	打印功能\n");
-		printf("6	排序功能\n");
-		printf("7	保存文件功能\n");
-		printf("8	退出登陆功能\n");
+		printf("\n------******--------\n");
+		printf("+1	查找功能     +\n");
+		printf("+2	修改功能     +\n");
+		printf("+3	插入功能     +\n");
+		printf("+4	删除功能     +\n");
+		printf("+5	打印功能     +\n");
+		printf("+6	排序功能     +\n");
+		printf("+7	保存文件功能 +\n");
+		printf("+8	退出登陆功能 +\n");
+		printf("\n------******--------\n");
 		printf("请选择: ");
 		scanf("%d", &option);
 		getchar();
 		switch(option)
 		{
 			case 1:
-				if(flag != 1 && flag != 2 && flag != 3)
-				{
-					printf("No such permission\n");
+			   	if(flag == 1)
+				{	
+					printf(L_RED);
+					find_Member_List(name, member_head_list);
+					printf(NONE);
 					break;
 				}
-				memset(aim_string, '\0', 10*sizeof(char));
-				printf("input the id or name which you want search:\n");
-				cin.getline(aim_string, 10);
-
+				printf("\ninput the id or name which you want search:\n");
+				memset(aim_string, '\0', 20*sizeof(char));
+				cin.getline(aim_string, 20);
+				printf(YELLOW);
 				find_Member_List(aim_string, member_head_list);
+				printf(NONE);
 				break;
 			case 2:
 				if(flag != 2 && flag != 3)
 				{
-					printf("No such permission\n");
+					printf("\nNo such permission\n");
 					break;
 				}
-				memset(aim_string, '\0', 10*sizeof(char));
-				printf("input the id or name which you want to alter:\n");
-				cin.getline(aim_string, 10);
+				memset(aim_string, '\0', 20*sizeof(char));
+				printf("\ninput the id or name which you want to alter:\n");
+				cin.getline(aim_string, 20);
 
 				alter_Member_List(aim_string, member_head_list);
 				break;
 			case 3:
 				if(flag != 3)
 				{
-					printf("No such permission\n");
+					printf("\nNo such permission\n");
 					break;
 				}	
 				struct member_List aim_member;
-				printf("input the information which you want to insert:\n");
-				cin.getline(aim_member.id, 10); cin.getline(aim_member.name, 10);
+				printf("\ninput the information which you want to insert:\n");
+				printf("input his id: ");
+				cin.getline(aim_member.id, 20); 
+				printf("input his name: ");
+				cin.getline(aim_member.name, 20);
 				for(int i = 1; i <= 4; ++i)
 				{
+					printf("\n科目[ %d ] : ", i);
 					scanf("%d", &aim_member.score[i]);
 				}
 				member_head_list = insert_Member_List(&aim_member, member_head_list);
@@ -658,23 +739,46 @@ int main()
 			case 4:
 				if(flag != 3)
 				{
-					printf("No such permission\n");
+					printf("\nNo such permission\n");
 					break;
 				}	
-				memset(aim_string, '\0', 10*sizeof(char));
-				printf("input the id or name which you want to remove:\n");
-				cin.getline(aim_string, 10);
+				memset(aim_string, '\0', 20*sizeof(char));
+				printf("\ninput the id or name which you want to remove:\n");
+				cin.getline(aim_string, 20);
 
 				member_head_list = remove_Member_List(aim_string, member_head_list);
 				break;
 			case 5:
+				if(flag != 2 && flag != 3)
+				{
+					printf("\nNo such permission\n");
+					break;
+				}	
+				printf(YELLOW);
 				print_Member_List(member_head_list);
+				printf(NONE);//清除颜色
+
+				if(flag == 3)
+				{
+					printf(L_RED);
+					for(int i = 1; i <= 4; ++i)
+					{
+						printf("科目[ %d ] 的通过率为:  %d/%d\n", i, pass_number[i], sum_member);
+					}
+					printf("\n一共通过%d个学员, 通过率为: %d/%d!\n", sum_member, pass_number[0], sum_member);
+					printf(NONE);
+					break;
+				}
+
 				break;
 			case 6:
 				sort_Member_List(member_head_list);
 				break;
 			case 7:
+				
+				progress_Bar_Print();
 				data_Write(member_head_list);
+				printf("\nwrite Success!\n");	
 				break;
 			case 8:
 				destroy_Member_List(member_head_list);
@@ -682,7 +786,7 @@ int main()
 				destroy_Coach_List(coach_head_list);
 				break;
 			default:
-				printf("not have this option\n");
+				printf("\nnot have this option\n");
 				break;
 		}
 	}
